@@ -1,5 +1,7 @@
 # Watch Tuner
 
+An iPhone and iPad app is available in the separate `WatchTunerIOS.xcodeproj`. See the [iOS guide](IOS/README.md).
+
 A tiny, native, standalone SwiftUI Apple Watch app with three mutually exclusive modes:
 
 - **Tuner:** detected Hz, nearest equal-tempered note/reference Hz, and a −50…+50 cents bar (A4 = 440 Hz). **Vocals is the default**. Long-press the tuner reading, or tap its visible profile/settings control, to choose persisted Vocals, Piano or Guitar settings. These are profiles within Tuner; Tone and Metronome stay separate.
