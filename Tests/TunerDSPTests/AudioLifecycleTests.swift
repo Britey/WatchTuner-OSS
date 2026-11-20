@@ -13,6 +13,41 @@ import XCTest
 }
 
 @MainActor final class AudioLifecycleTests: XCTestCase {
+    func testRepeatedForegroundSessionsNeverReviveCancelledPermissionCallbacks() async {
+        let state = AudioLifecycle()
+        var stoppedTokens: [Int] = []
+        var shutdownOrder: [Int] = []
+        for session in 0..<30 {
+            _ = state.updateActivity(.active)
+            let token = state.beginStart()
+            state.beginPrompt(token: token)
+            XCTAssertFalse(state.updateActivity(.inactive))
+            XCTAssertEqual(state.finishPermission(token: token, granted: true), .granted)
+            let waiting = Task { await state.waitForForeground(token: token) }
+            for _ in 0..<100 where state.foregroundWaiterCount == 0 { await Task.yield() }
+            XCTAssertEqual(state.foregroundWaiterCount, 1)
+            if session.isMultiple(of: 2) {
+                // A Stop while permission UI dismisses must release the waiter.
+                state.cancelStart()
+                let resumed = await waiting.value
+                XCTAssertFalse(resumed)
+            } else {
+                _ = state.updateActivity(.active)
+                let resumed = await waiting.value
+                XCTAssertTrue(resumed)
+                state.cancelStart()
+            }
+            stoppedTokens.append(token)
+            state.enqueueShutdown { shutdownOrder.append(session) }
+            await state.waitForShutdown()
+            XCTAssertEqual(state.foregroundWaiterCount, 0)
+            for stale in stoppedTokens {
+                XCTAssertEqual(state.finishPermission(token: stale, granted: true), .cancelled)
+            }
+        }
+        XCTAssertEqual(shutdownOrder, Array(0..<30))
+    }
+
     func testPermissionPromptPreservesIntentButWaitsForForeground() async {
         let state = AudioLifecycle()
         let token = state.beginStart()
